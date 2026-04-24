@@ -23,18 +23,21 @@ class MenuController extends Controller
     /**
      * Menambahkan menu baru
      * 
-     * BUG: Data tidak pernah tersimpan ke database!
-     * Raka lupa memanggil $menu->save() setelah mengisi atribut.
-     * Response tetap mengembalikan "sukses", sehingga Bu Sari mengira
-     * data sudah masuk, padahal belum tersimpan sama sekali.
+     * PERBAIKAN:
+     * 1. Menambahkan validasi input agar data yang masuk terjamin benar
+     * 2. Memanggil $menu->save() agar data benar-benar tersimpan ke database
      */
     public function store(Request $request)
     {
+        $request->validate([
+            'nama' => 'required|string|max:255',
+            'harga' => 'required|numeric|min:0',
+        ]);
+
         $menu = new Menu();
         $menu->nama = $request->nama;
         $menu->harga = $request->harga;
-
-        // Raka lupa memanggil $menu->save() di sini!
+        $menu->save();
 
         return response()->json([
             'message' => 'Menu berhasil ditambahkan!',
@@ -45,14 +48,21 @@ class MenuController extends Controller
     /**
      * Menghapus menu
      * 
-     * BUG: Tidak ada penanganan error jika menu tidak ditemukan!
-     * Raka menggunakan findOrFail() tanpa try-catch, sehingga ketika
-     * Bu Sari mencoba menghapus menu yang sudah tidak ada (misal 'Es Teh'),
-     * aplikasi menampilkan error 500 dengan stack trace panjang berwarna merah.
+     * PERBAIKAN:
+     * 1. Menggunakan find() (bukan findOrFail()) untuk menghindari exception otomatis
+     * 2. Menambahkan pengecekan manual jika menu tidak ditemukan
+     * 3. Mengembalikan response JSON 404 yang user-friendly, bukan error 500 dengan stack trace
      */
     public function destroy($id)
     {
-        $menu = Menu::findOrFail($id);
+        $menu = Menu::find($id);
+
+        if (!$menu) {
+            return response()->json([
+                'message' => 'Menu tidak ditemukan!'
+            ], 404);
+        }
+
         $menu->delete();
 
         return response()->json([
